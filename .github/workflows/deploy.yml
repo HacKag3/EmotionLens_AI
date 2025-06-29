@@ -1,0 +1,40 @@
+name: Build and Deploy 
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+    
+    - name: Install dependencies
+      run: |
+        make install
+        pip install build
+    
+    - name: Linting
+      run: |
+        make lint
+    
+    - name: Testing
+      run: |
+        make test
+    
+    - name: Building Package
+      run: |
+        make build
+    
+    - name: Upload Python Package as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package
+        path: dist/*
