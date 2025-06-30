@@ -1,5 +1,3 @@
-.env
-
 venv/
 .pytest_cache/
 .coverage
@@ -12,9 +10,4 @@ __pycache__/
 dist/
 build/
 
-data/
-*.png
-*.jpg
-*.jpeg
-persistent_data/
 results/

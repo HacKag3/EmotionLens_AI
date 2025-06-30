@@ -60,3 +60,17 @@ ifeq ($(OS),Windows_NT)
 else
 	$(RM) dist/ build/ *.egg-info .pytest_cache .coverage __pycache__
 endif
+
+ifeq ($(OS),Windows_NT)
+    DOCKER_PWD := $(subst \,/,${CURDIR})
+else
+    DOCKER_PWD := $(CURDIR)
+endif
+docker:
+	docker build -t fer2013 .
+docker_fer2013: docker
+	docker run --rm --name fer2013 \
+		-v "$(DOCKER_PWD)/persistent_data:/app/results" \
+		fer2013 \
+		python src/fer2013.py
+	docker image prune -f
