@@ -1,3 +1,5 @@
+.env
+
 venv/
 .pytest_cache/
 .coverage
@@ -9,3 +11,10 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+
+data/
+*.png
+*.jpg
+*.jpeg
+
+results/
