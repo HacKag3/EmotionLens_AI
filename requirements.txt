@@ -9,5 +9,7 @@ matplotlib
 seaborn
 tqdm
 scikit-learn
+gradio
+gradio_webrtc
 opencv-python
 Pillow

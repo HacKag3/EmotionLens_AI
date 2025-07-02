@@ -78,3 +78,11 @@ docker_fer2013:
 	make docker_run script=src/fer2013.py name=fer2013
 docker_fed2013:
 	make docker_run script=src/fed2013.py name=fed2013
+docker_emotionlens: docker
+	docker run --rm --name emotionslens \
+		--device /dev/video0:/dev/video0 \
+		-v "$(DOCKER_PWD)/persistent_data:/app/results" \
+		-p 7860:7860 \
+		emotionslens \
+		python src/emotionlens_ai.py
+	docker image prune -f

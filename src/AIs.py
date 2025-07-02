@@ -373,6 +373,16 @@ class FED2013:
     '''
     Riconoscimento dei volti adattato con FER2013
     '''
+    EMOTION_COLOR_BGR = {
+        0: (0, 0, 255), 
+        1: (0, 204, 102), 
+        2: (128, 0, 128), 
+        3: (0, 255, 255),
+        4: (255, 0, 0), 
+        5: (0, 165, 255), 
+        6: (128, 128, 128)
+    }
+
     def __init__(self, emotion_model:str, path:str=None):
         self.emotion_model = FER2013(emotion_model)
         self.face_net = FaceDetector(path)
@@ -404,21 +414,20 @@ class FED2013:
                 (startX, startY, endX, endY) = box.astype("int")
                 startX, startY = max(0, startX), max(0, startY)
                 endX, endY = min(w, endX), min(h, endY)
-                cv2.rectangle(image, (startX, startY), (endX, endY), (0, 255, 0), 2)
                 # Emotion Recognition
                 face = image[startY:endY, startX:endX]
                 if face.size == 0:
                     continue
                 face_pil = Image.fromarray(cv2.cvtColor(face, cv2.COLOR_BGR2RGB))
                 input_tensor = self.emotion_model.transform(face_pil).unsqueeze(0)
-
                 self.emotion_model.model.eval()
                 with torch.no_grad():
                     output = self.emotion_model.model(input_tensor)
                     pred = torch.argmax(output, dim=1).item()
-                    emotion = self.emotion_model.EMOTION_MAP[pred]
-                cv2.putText(image, emotion, (startX, startY - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                
+                cv2.rectangle(image, (startX, startY), (endX, endY), FED2013.EMOTION_COLOR_BGR[pred], 2)
+                cv2.putText(image, self.emotion_model.EMOTION_MAP[pred], (startX, startY - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, FED2013.EMOTION_COLOR_BGR[pred], 2)
 
         if output_path:
             cv2.imwrite(output_path, image)

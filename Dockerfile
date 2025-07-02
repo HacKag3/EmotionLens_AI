@@ -13,5 +13,8 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 # Copia di tutto il progetto
 COPY . .
 
+# Esponi la porta predefinita di Gradio
+EXPOSE 7860
+
 ENV PYTHONPATH=/app
-CMD ["python", "-u"]
+CMD ["python", "-u", "src/emotionlens_ai.py"]
