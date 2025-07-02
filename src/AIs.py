@@ -1,5 +1,7 @@
+# pylint: disable=no-member
+# pylint: disable=arguments-differ
 from dotenv import load_dotenv
-import os, shutil, time
+import os, shutil, time, urllib.request, random
 from pathlib import Path
 import kagglehub
 from torchvision import transforms
@@ -16,6 +18,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
 from sklearn.metrics import classification_report, confusion_matrix
+import cv2
+from PIL import Image
 
 RESULTS = "./results/"
 
@@ -25,6 +29,90 @@ class AI:
         sets = ImageFolder(root=path, transform=transform)
         loader = DataLoader(sets, batch_size=batch, shuffle=shuffle)
         return sets, loader
+    
+    @staticmethod
+    def download_dataset(link:str, path:str):
+        load_dotenv()
+        try:
+            user = kagglehub.whoami()  # Verifica le credenziali
+            print(f"✅ Autenticated as: {user}")
+        except Exception as e:
+            print(f"❌ Autentication Error: {e}")
+            raise SystemExit(1) from e
+        
+        if (path is not None):
+            os.makedirs(path, exist_ok=True)
+        
+        try:
+            cache_path = kagglehub.dataset_download(
+                link,
+                force_download=True
+            )
+            print(f"🔄 Dataset scaricato nella cache: {cache_path}")
+            for file in os.listdir(cache_path):
+                src = os.path.join(cache_path, file)
+                dst = os.path.join(path, file)
+                
+                if os.path.isdir(src):
+                    shutil.copytree(src, dst, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(src, dst)
+            print(f"✅ Dataset finale in: {path}")
+            # Pulizia Cache
+            user, dataset_name = link.split('/')
+            cache_root = Path.home() / ".cache" / "kagglehub" / "datasets" / user / dataset_name
+            shutil.rmtree(cache_root, ignore_errors=True)
+            print(f"🗑️  Pulizia cache: {cache_path}")
+        except Exception as e:
+            print(f"❌ Errore durante l'operazione: {str(e)}")
+            if os.path.exists(path):
+                shutil.rmtree(path)
+            raise SystemExit(1) from e
+    
+    @staticmethod
+    def download_dataset_sample(link:str, path:str, max_files:int):
+        load_dotenv()
+        try:
+            user = kagglehub.whoami()  # Verifica le credenziali
+            print(f"✅ Autenticated as: {user}")
+        except Exception as e:
+            print(f"❌ Autentication Error: {e}")
+            raise SystemExit(1) from e
+        
+        if (path is not None):
+            os.makedirs(path, exist_ok=True)
+        
+        try:
+            cache_path = kagglehub.dataset_download(
+                link,
+                force_download=True
+            )
+            print(f"🔄 Dataset scaricato nella cache: {cache_path}")
+            all_files = []
+            for root, _, filenames in os.walk(cache_path):
+                for f in filenames:
+                    if f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
+                        all_files.append(os.path.join(root, f))
+            random.shuffle(all_files)
+            count = 0
+            for src in all_files:
+                if count >= max_files:
+                    break
+                if random.randint(1, 10) > 5:  # 50% di probabilità
+                    dst = os.path.join(path, os.path.basename(src))
+                    shutil.copy2(src, dst)
+                    count += 1
+            print(f"✅ Dataset finale in: {path}")
+            # Pulizia Cache
+            user, dataset_name = link.split('/')
+            cache_root = Path.home() / ".cache" / "kagglehub" / "datasets" / user / dataset_name
+            shutil.rmtree(cache_root, ignore_errors=True)
+            print(f"🗑️  Pulizia cache: {cache_path}")
+        except Exception as e:
+            print(f"❌ Errore durante l'operazione: {str(e)}")
+            if os.path.exists(path):
+                shutil.rmtree(path)
+            raise SystemExit(1) from e
 
 class SimpleCNN(nn.Module):
     def __init__(self, total_class_num:int):
@@ -50,6 +138,9 @@ class SimpleCNN(nn.Module):
         return x
 
 class FER2013(AI):
+    '''
+    Emotion Detection
+    '''
     X, Y = 48, 48
     EMOTION_MAP = {     # Mappa delle emozioni
         0: "Angry", 
@@ -61,6 +152,14 @@ class FER2013(AI):
         6: "Neutral"
     }
 
+    @staticmethod
+    def download_dataset(path:str):
+        AI.download_dataset(link="msambare/fer2013", path=path)
+    
+    @staticmethod
+    def download_inferenceset(path:str, num:int=1):
+        AI.download_dataset_sample(link="msambare/fer2013", path=path, max_files=num)
+    
     def __init__(self, model_path:str=None):
         self.model = SimpleCNN(len(self.EMOTION_MAP))
         if model_path is not None:
@@ -76,7 +175,7 @@ class FER2013(AI):
     
     def _load_model(self, model_path:str):
         if not os.path.exists(model_path):
-            raise FileNotFoundError(f"Model file {model_path} not found")
+            return
         obj = torch.load(model_path)
         if isinstance(obj, dict):
             self.model.load_state_dict(obj)
@@ -94,44 +193,6 @@ class FER2013(AI):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         torch.save(self.model.state_dict(), path)
         print(f"Model saved to {path}")
-    
-    @staticmethod
-    def download_dataset(path:str):
-        load_dotenv()
-        try:
-            user = kagglehub.whoami()  # Verifica le credenziali
-            print(f"✅ Autenticated as: {user}")
-        except Exception as e:
-            print(f"❌ Autentication Error: {e}")
-            raise SystemExit(1) from e
-        
-        if (path is not None):
-            os.makedirs(path, exist_ok=True)
-        try:
-            cache_path = kagglehub.dataset_download(
-                "msambare/fer2013",
-                force_download=True
-            )
-            print(f"🔄 Dataset scaricato nella cache: {cache_path}")
-            for item in os.listdir(cache_path):
-                src = os.path.join(cache_path, item)
-                dst = os.path.join(path, item)
-                
-                if os.path.isdir(src):
-                    shutil.copytree(src, dst, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(src, dst)
-            print(f"✅ Dataset finale in: {path}")
-            # Pulizia Cache
-            user, dataset_name = "msambare/fer2013".split('/')
-            cache_root = Path.home() / ".cache" / "kagglehub" / "datasets" / user / dataset_name
-            shutil.rmtree(cache_root, ignore_errors=True)
-            print(f"🗑️  Pulizia cache: {cache_path}")
-        except Exception as e:
-            print(f"❌ Errore durante l'operazione: {str(e)}")
-            if os.path.exists(path):
-                shutil.rmtree(path)
-            raise SystemExit(1) from e
     
     def EDA(
         self, dataset_path:str,
@@ -255,3 +316,117 @@ class FER2013(AI):
         save_path = os.path.join(save_dir, filename)
         save_image(image_tensor.squeeze(0), save_path)
         print(f"Inferenza completata: {predicted_class} -> {save_path}")
+
+class FaceDetector:
+    '''
+    Riconoscimento dei volti
+    '''
+    DNN_FILES = {
+        "deploy.prototxt.txt": "https://raw.githubusercontent.com/opencv/opencv/master/samples/dnn/face_detector/deploy.prototxt",
+        "res10_300x300_ssd_iter_140000_fp16.caffemodel": "https://github.com/mostofashakib/Image-Analysis-and-Real-Time-Face-Recognition-system/raw/master/res10_300x300_ssd_iter_140000_fp16.caffemodel"
+    }
+    
+    @staticmethod
+    def download_DNN_files(path:str):
+        os.makedirs(path, exist_ok=True)
+        for filename, url in FaceDetector.DNN_FILES.items():
+            filepath = os.path.join(path, filename)
+            if not os.path.exists(filepath):
+                print(f"Scaricando {filepath}...")
+                urllib.request.urlretrieve(url, filepath)
+                print(f"{filepath} scaricato.")
+            else:
+                print(f"{filepath} già presente, salto il download.")
+    
+    def __init__(self, dnn_path:str=None):
+        if not dnn_path : dnn_path = "."
+        FaceDetector.download_DNN_files(dnn_path)
+        self.net = cv2.dnn.readNetFromCaffe(
+            os.path.join(dnn_path, list(FaceDetector.DNN_FILES.keys())[0]), 
+            os.path.join(dnn_path, list(FaceDetector.DNN_FILES.keys())[1])
+        )
+    
+    def visual_detect(self, path:str, ishow:bool=False):
+        image = cv2.imread(path)
+        (h, w) = image.shape[:2]
+        blob = cv2.dnn.blobFromImage(
+            cv2.resize(image, (300, 300)), 1.0,
+            (300, 300), (104.0, 177.0, 123.0)
+        )
+        self.net.setInput(blob)
+        detections = self.net.forward()
+        for i in range(0, detections.shape[2]):
+            confidence = detections[0, 0, i, 2]
+            if confidence > 0.5:
+                box = detections[0, 0, i, 3:7] * [w, h, w, h]
+                (startX, startY, endX, endY) = box.astype("int")
+                startX, startY = max(0, startX), max(0, startY)
+                endX, endY = min(w, endX), min(h, endY)
+                cv2.rectangle(image, (startX, startY), (endX, endY), (0, 255, 0), 2)
+
+        if ishow:
+            cv2.imshow("Face + Emotion Detection", image)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
+class FED2013:
+    '''
+    Riconoscimento dei volti adattato con FER2013
+    '''
+    def __init__(self, emotion_model:str, path:str=None):
+        self.emotion_model = FER2013(emotion_model)
+        self.face_net = FaceDetector(path)
+    
+    @staticmethod
+    def download_dataset(path:str, num:int=5):
+        AI.download_dataset_sample(link="fareselmenshawii/face-detection-dataset", path=path, max_files=num)
+    
+    def detect_and_classify(self, img_input, output_path:str=None, is_img_a_path:bool=True, i_show:bool=False):
+        if is_img_a_path:
+            image = cv2.imread(img_input)
+            if image is None:
+                print(f"Errore: Impossibile aprire immagine {img_input}")
+                return None
+        else:
+            image = cv2.cvtColor(img_input, cv2.COLOR_RGB2BGR)
+
+        (h, w) = image.shape[:2]
+        blob = cv2.dnn.blobFromImage(
+            cv2.resize(image, (300, 300)), 1.0,
+            (300, 300), (104.0, 177.0, 123.0)
+        )
+        self.face_net.net.setInput(blob)
+        detections = self.face_net.net.forward()
+        for i in range(0, detections.shape[2]):
+            confidence = detections[0, 0, i, 2]
+            if confidence > 0.5:
+                box = detections[0, 0, i, 3:7] * [w, h, w, h]
+                (startX, startY, endX, endY) = box.astype("int")
+                startX, startY = max(0, startX), max(0, startY)
+                endX, endY = min(w, endX), min(h, endY)
+                cv2.rectangle(image, (startX, startY), (endX, endY), (0, 255, 0), 2)
+                # Emotion Recognition
+                face = image[startY:endY, startX:endX]
+                if face.size == 0:
+                    continue
+                face_pil = Image.fromarray(cv2.cvtColor(face, cv2.COLOR_BGR2RGB))
+                input_tensor = self.emotion_model.transform(face_pil).unsqueeze(0)
+
+                self.emotion_model.model.eval()
+                with torch.no_grad():
+                    output = self.emotion_model.model(input_tensor)
+                    pred = torch.argmax(output, dim=1).item()
+                    emotion = self.emotion_model.EMOTION_MAP[pred]
+                cv2.putText(image, emotion, (startX, startY - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+        if output_path:
+            cv2.imwrite(output_path, image)
+            print(f"Immagine salvata con emozioni in {output_path}")
+        elif not is_img_a_path:
+            return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        if i_show:
+            cv2.imshow("Face + Emotion Detection", image)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()

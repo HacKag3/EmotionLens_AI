@@ -9,4 +9,5 @@ matplotlib
 seaborn
 tqdm
 scikit-learn
+opencv-python
 Pillow

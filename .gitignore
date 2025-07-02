@@ -18,3 +18,5 @@ data/
 *.jpeg
 persistent_data/
 results/
+
+.gradio/

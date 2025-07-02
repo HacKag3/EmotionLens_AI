@@ -14,4 +14,4 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 ENV PYTHONPATH=/app
-CMD ["python", "-u", "src.fer2013.py"]
+CMD ["python", "-u"]

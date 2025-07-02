@@ -49,7 +49,7 @@ build:
 	$(R_PYTHON) -m build
 	@echo "Build complete. Check dist/ directory."
 
-clean:
+clean_build:
 ifeq ($(OS),Windows_NT)
 	@if exist dist rmdir /s /q dist
 	@if exist build rmdir /s /q build
@@ -67,10 +67,14 @@ else
     DOCKER_PWD := $(CURDIR)
 endif
 docker:
-	docker build -t fer2013 .
-docker_fer2013: docker
-	docker run --rm --name fer2013 \
+	docker build -t emotionslens .
+docker_run: docker
+	docker run --rm --name $(name) \
 		-v "$(DOCKER_PWD)/persistent_data:/app/results" \
-		fer2013 \
-		python src/fer2013.py
+		emotionslens \
+		python $(script)
 	docker image prune -f
+docker_fer2013:
+	make docker_run script=src/fer2013.py name=fer2013
+docker_fed2013:
+	make docker_run script=src/fed2013.py name=fed2013
